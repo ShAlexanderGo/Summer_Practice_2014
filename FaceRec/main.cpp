@@ -3,16 +3,18 @@
 #include <time.h>
 
 const std::string windowName = "Window";
+const std::string cascadePath = "haarcascade_frontalface_alt.xml";
 
-//960x720->640x480 1920x1080->854x480
-const int INPUT_IMAGE_WIDTH = 960;
-const int INPUT_IMAGE_HEIGHT = 720;
+const int INPUT_IMAGE_WIDTH = 864;
+const int INPUT_IMAGE_HEIGHT = 480;
 
-const int RESIZED_IMAGE_WIDTH = 640;
-const int RESIZED_IMAGE_HEIGHT = 480;
+const int RESIZED_IMAGE_WIDTH = 800;
+const int RESIZED_IMAGE_HEIGHT = 450;
 
-const int WINDOW_WIDTH = 640;
-const int WINDOW_HEIGHT = 480;
+const int WINDOW_WIDTH = 533;
+const int WINDOW_HEIGHT = 300;
+
+const int SIZE = 80;
 
 const int N = 30; //FPS считается как среднее за N фреймов
 
@@ -24,7 +26,7 @@ int main(int argc, char **argv) {
 	if (!camera.isOpened()) return 1; //Если нельзя открыть камеру
 
 	//Каскад
-	cv::CascadeClassifier face_cascade("C:\\123\\C++\\Libraries\\OpenCV\\sources\\data\\haarcascades\\haarcascade_frontalface_alt.xml");
+	cv::CascadeClassifier face_cascade(cascadePath);
 	if (face_cascade.empty()) return 1;
 
 	//Окно
@@ -43,6 +45,7 @@ int main(int argc, char **argv) {
 		if (frame.empty()) continue; //если фрейм не считался
 
 		//обработка изображения
+		cv::Mat originalFrame = frame;
 		cv::resize(frame, frame, cv::Size(RESIZED_IMAGE_WIDTH,
 				RESIZED_IMAGE_HEIGHT));
 		cv::Mat grayFrame;
@@ -51,19 +54,20 @@ int main(int argc, char **argv) {
 
 		//поиск лиц
 		std::vector<cv::Rect> faces;
-		face_cascade.detectMultiScale(grayFrame, faces, 1.3, 4, 0, cv::Size(80, 80));
+		face_cascade.detectMultiScale(grayFrame, faces, 1.3, 4, 0, cv::Size(SIZE, SIZE));
+
+		//подго под размер экрана
+		cv::resize(originalFrame, originalFrame, cv::Size(WINDOW_WIDTH, WINDOW_HEIGHT));
 
 		//рисование
+		double scale = (double)WINDOW_WIDTH / (double)RESIZED_IMAGE_WIDTH;
 		for (unsigned int i = 0; i < faces.size(); i++) {
-			cv::Point center(faces[i].x + faces[i].width * 0.5,
-					faces[i].y + faces[i].height * 0.5);
-			cv::ellipse(frame, center,
-					cv::Size(faces[i].width * 0.5, faces[i].height * 0.5),
-					0, 0, 360, cv::Scalar(255, 0, 255 ), 4, 8, 0);
+			faces[i].x = (int)(scale * (double)faces[i].x);
+			faces[i].y = (int)(scale * (double)faces[i].y);
+			faces[i].width = (int)(scale * (double)faces[i].width);
+			faces[i].height = (int)(scale * (double)faces[i].height);
+			cv::rectangle(originalFrame, faces[i], cv::Scalar(0, 255, 0), 2);
 		}
-
-		//подгон изображения под размер окна
-		cv::resize(frame, frame, cv::Size(WINDOW_WIDTH, WINDOW_HEIGHT));
 
 		//подсчёт и рисование FPS
 		counter = (counter + 1) % N;
@@ -75,11 +79,11 @@ int main(int argc, char **argv) {
 			FPS = sstr.str();
 			time = clock();
 		}
-		cv::Point p(10, WINDOW_HEIGHT - 10);
+		cv::Point p(10, 200);
 		cv::Scalar color(0, 255, 0);
-		cv::putText(frame, FPS, p, cv::FONT_HERSHEY_DUPLEX, 1, color);
+		cv::putText(originalFrame, FPS, p, cv::FONT_HERSHEY_DUPLEX, 1, color);
 
-		imshow(windowName, frame);
+		imshow(windowName, originalFrame);
 		if(cv::waitKey(30) >= 0) break;
 	}
 
